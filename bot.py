@@ -5,8 +5,10 @@ from aiogram.filters import Command
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types as genai_types
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
-# .env faylini yuklaymiz
+# .env yuklash
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -18,7 +20,7 @@ ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-    await message.answer("Salom! Men Gemini AI yordamida ishlaydigan aqlli assistentman. Savolingizni bering! 🚀")
+    await message.answer("Salom! Men siz sozlangan maxsus yo'nalish bo'yicha AI assistentman. Savolingizni bering! 🚀")
 
 @dp.message()
 async def message_handler(message: types.Message):
@@ -36,32 +38,29 @@ async def message_handler(message: types.Message):
         await message.reply("Xatolik yuz berdi. Qayta urinib ko'ring.")
         print(f"Xato: {e}")
 
-# Esiz kodda faqat dp.start_polling(bot) bor edi.
-# Render o'chib qolmasligi uchun kichik veb-server ham qo'shib yuboramiz.
+# Render port so'ragani uchun oddiy HTTP server xizmati
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"Bot is alive")
+
+def run_health_server():
+    port = int(os.getenv("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    print(# "Dummy server started on port", port)
+    server.serve_forever()
+
 async def main():
     print("Bot muvaffaqiyatli ishga tushdi...")
     
-    # Render port talab qilgani uchun fon rejimi xatoligini oldini olamiz
-    import asyncio
-    from aiogram.webhook.aiohttp_impl import SimpleRequestHandler
-    from aiohttp import web
-    
-    # Render beradigan portni olamiz (bepul rejim uchun majburiy)
-    port = int(os.getenv("PORT", 10000))
-    app = web.Application()
+    # Render o'chib qolmasligi uchun HTTP serverni alohida oqimda (Thread) yuritamiz
+    server_thread = threading.Thread(target=run_health_server, daemon=True)
+    server_thread.start()
     
     # Botni oddiy polling orqali ishga tushiramiz
-    asyncio.create_task(dp.start_polling(bot))
-    
-    # Serverni fonda yuritib qo'yamiz (Render tekin tarifda o'chirib qo'ymasligi uchun)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    
-    # Bot o'chib qolmasligi uchun cheksiz kutish rejimida ushlab turamiz
-    while True:
-        await asyncio.sleep(3600)
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
