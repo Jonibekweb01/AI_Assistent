@@ -36,9 +36,32 @@ async def message_handler(message: types.Message):
         await message.reply("Xatolik yuz berdi. Qayta urinib ko'ring.")
         print(f"Xato: {e}")
 
+# Esiz kodda faqat dp.start_polling(bot) bor edi.
+# Render o'chib qolmasligi uchun kichik veb-server ham qo'shib yuboramiz.
 async def main():
     print("Bot muvaffaqiyatli ishga tushdi...")
-    await dp.start_polling(bot)
+    
+    # Render port talab qilgani uchun fon rejimi xatoligini oldini olamiz
+    import asyncio
+    from aiogram.webhook.aiohttp_impl import SimpleRequestHandler
+    from aiohttp import web
+    
+    # Render beradigan portni olamiz (bepul rejim uchun majburiy)
+    port = int(os.getenv("PORT", 10000))
+    app = web.Application()
+    
+    # Botni oddiy polling orqali ishga tushiramiz
+    asyncio.create_task(dp.start_polling(bot))
+    
+    # Serverni fonda yuritib qo'yamiz (Render tekin tarifda o'chirib qo'ymasligi uchun)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    
+    # Bot o'chib qolmasligi uchun cheksiz kutish rejimida ushlab turamiz
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
     asyncio.run(main())
