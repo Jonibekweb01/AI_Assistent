@@ -49,7 +49,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 def run_health_server():
     port = int(os.getenv("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
-    print(# "Dummy server started on port", port)
+    print("Dummy server started on port", port)
     server.serve_forever()
 
 async def main():
